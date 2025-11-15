@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 # ========================================
 # PAGE CONFIG
 # ========================================
-st.set_page_config(page_title="Farm Production Dashboard", layout="wide")
+st.set_page_config(page_title="Farm Production Dashboard By Brian Ochieng", layout="wide")
 st.title("Farm Production Dashboard")
 
 # ========================================
@@ -216,3 +216,4 @@ st.download_button("Download Sensitivity", sens.to_csv(index=False).encode(), "s
 # ========================================
 st.success("All graphs loaded successfully!")
 st.caption(f"Built for @Edwinmute • {pd.Timestamp.now().strftime('%d %B %Y, %I:%M %p')} EAT")
+
