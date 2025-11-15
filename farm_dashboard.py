@@ -1,4 +1,3 @@
-%%writefile farm_dashboard.py
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -173,3 +172,4 @@ st.dataframe(sens)
 st.download_button("Download Sensitivity", sens.to_csv(index=False).encode(), "sensitivity.csv", "text/csv")
 
 st.success("All graphs loaded! Scroll up to explore.")
+
