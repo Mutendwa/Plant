@@ -5,38 +5,38 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ========================================
-# SWAHILI CONFIG & UI
+# PAGE CONFIG
 # ========================================
-st.set_page_config(page_title="Dashibodi ya Uzalishaji Shambani", layout="wide")
-st.title("Dashibodi ya Uzalishaji Shambani")
+st.set_page_config(page_title="Farm Production Dashboard", layout="wide")
+st.title("Farm Production Dashboard")
 
 # ========================================
-# PAKIA FAILI
+# FILE UPLOAD
 # ========================================
 uploaded = st.sidebar.file_uploader(
-    "Pakia **Oltepesi DA Test Workbook.xlsx**",
+    "Upload **Oltepesi DA Test Workbook.xlsx**",
     type=["xlsx"],
-    help="Bofya au buruta faili hapa"
+    help="Click or drag & drop your Excel file"
 )
 
 if uploaded is None:
-    st.info("Tafadhali pakia faili lako la Excel ili uanze.")
+    st.info("Please upload your Excel file to begin.")
     st.stop()
 
-# Hifadhi faili
+# Save file
 with open("temp_data.xlsx", "wb") as f:
     f.write(uploaded.getbuffer())
 
 try:
     df = pd.read_excel("temp_data.xlsx")
 except Exception as e:
-    st.error(f"Hitilafu kusoma faili: {e}")
+    st.error(f"Error reading file: {e}")
     st.stop()
 
 df.columns = df.columns.str.strip()
 
 # ========================================
-# MIPANGILIO
+# CONFIG
 # ========================================
 SICK_FACTOR = 0.06
 HARVESTER_OUTPUT_PER_DAY = 100.0
@@ -45,7 +45,7 @@ FORECAST_ROLLING_WEEKS = 4
 TOP_VARIETIES_TO_PLOT = 6
 
 # ========================================
-# KUSAFISHA DATA
+# DATA PREP
 # ========================================
 day_cols = ['Monday','Tuesday','Wednesday','Thursday','Friday','Saturday','Sunday']
 for c in day_cols:
@@ -82,11 +82,11 @@ df = df.sort_values(sort_by).reset_index(drop=True)
 df['Nth Day'] = df.groupby(group_keys).cumcount() + 1
 df['Nth Week'] = ((df['Nth Day'] - 1) // 7 + 1).astype(int)
 
-# Hesabu
 df['MotherPlants'] = pd.to_numeric(df.get('MotherPlants'), errors='coerce')
 df['Total'] = pd.to_numeric(df.get('Total'), errors='coerce').fillna(0.0)
 df['EstimatedCoefficient'] = pd.to_numeric(df.get('EstimatedCoefficient'), errors='coerce')
 
+# Coefficients
 df['Actual Coefficient'] = df.apply(
     lambda r: r['Total'] / r['MotherPlants'] * 100
     if pd.notna(r['MotherPlants']) and r['MotherPlants'] > 0 else np.nan, axis=1)
@@ -113,7 +113,7 @@ if 'PlantDate' in df.columns and df['PlantDate'].notna().any():
 else:
     df['WeekStart'] = df.apply(lambda r: weekstart_from_year_week(r['Year'], r['Week']), axis=1)
 
-# Jumla ya Wiki
+# Weekly aggregates
 weekly_variety = (
     df.groupby(['WeekStart', 'Variety'], dropna=False)
       .agg(
@@ -126,7 +126,7 @@ weekly_variety = (
       .sort_values(['Variety','WeekStart'])
 )
 
-# USALAMA: Tumia 'EstimatedTotal' – sio 'EstimatedProduction'
+# FIXED: Use 'EstimatedTotal' (not 'EstimatedProduction')
 weekly_variety['AccuracyRate_pct'] = np.where(
     weekly_variety['EstimatedTotal'].replace(0, np.nan).notna(),
     weekly_variety['ActualTotal'] / weekly_variety['EstimatedTotal'] * 100,
@@ -134,46 +134,46 @@ weekly_variety['AccuracyRate_pct'] = np.where(
 )
 
 # ========================================
-# CHATI 1: Jumla ya Wiki
+# PLOT 1: Weekly Total
 # ========================================
-st.subheader("1. Jumla ya Uzalishaji kwa Wiki")
+st.subheader("1. Weekly Total Production")
 weekly_totals = df.groupby('WeekStart', dropna=False)['Total'].sum().reset_index()
 fig, ax = plt.subplots(figsize=(11,4))
 ax.plot(weekly_totals['WeekStart'], weekly_totals['Total'], marker='o', color='teal')
-ax.set_title("Jumla ya Wiki"); ax.set_xlabel("Wiki"); ax.set_ylabel("Vitengo"); ax.grid(True)
+ax.set_title("Weekly Total"); ax.set_xlabel("Week"); ax.set_ylabel("Units"); ax.grid(True)
 st.pyplot(fig)
 
 # ========================================
-# CHATI 2: Aina Bora
+# PLOT 2: Top Varieties
 # ========================================
-st.subheader("2. Aina Bora – Halisi dhidi ya Makadirio")
+st.subheader("2. Top Varieties – Actual vs Estimated")
 top_varieties = weekly_variety.groupby('Variety')['EstimatedTotal'].sum().nlargest(TOP_VARIETIES_TO_PLOT).index.tolist()
-variety_filter = st.selectbox("Chagua Aina", ["<Zote Bora>"] + top_varieties)
+variety_filter = st.selectbox("Select Variety", ["<All Top>"] + top_varieties)
 
-if variety_filter == "<Zote Bora>":
+if variety_filter == "<All Top>":
     cols = st.columns(2)
     for i, v in enumerate(top_varieties):
         sub = weekly_variety[weekly_variety['Variety'] == v]
         fig, ax = plt.subplots(figsize=(5.5,3))
-        ax.plot(sub['WeekStart'], sub['ActualTotal'], 'o-', label='Halisi')
-        ax.plot(sub['WeekStart'], sub['EstimatedTotal'], 's--', label='Makadirio')
+        ax.plot(sub['WeekStart'], sub['ActualTotal'], 'o-', label='Actual')
+        ax.plot(sub['WeekStart'], sub['EstimatedTotal'], 's--', label='Estimated')
         ax.set_title(v, fontsize=10); ax.legend(fontsize=8); ax.grid(True)
         with cols[i % 2]:
             st.pyplot(fig)
 else:
     sub = weekly_variety[weekly_variety['Variety'] == variety_filter]
     fig, (ax1, ax2) = plt.subplots(2,1,figsize=(10,6), sharex=True)
-    ax1.plot(sub['WeekStart'], sub['ActualTotal'], 'o-', label='Halisi')
-    ax1.plot(sub['WeekStart'], sub['EstimatedTotal'], 's--', label='Makadirio')
-    ax1.set_title(f"{variety_filter} – Uzalishaji"); ax1.legend(); ax1.grid(True)
+    ax1.plot(sub['WeekStart'], sub['ActualTotal'], 'o-', label='Actual')
+    ax1.plot(sub['WeekStart'], sub['EstimatedTotal'], 's--', label='Estimated')
+    ax1.set_title(f"{variety_filter} – Production"); ax1.legend(); ax1.grid(True)
     ax2.plot(sub['WeekStart'], sub['MeanActualCoeff'], 'o-', color='green')
-    ax2.set_title("Mgawo Wastani Halisi (%)"); ax2.grid(True)
+    ax2.set_title("Mean Actual Coefficient (%)"); ax2.grid(True)
     st.pyplot(fig)
 
 # ========================================
-# CHATI 3: Utabiri
+# PLOT 3: Forecast
 # ========================================
-st.subheader("3. Utabiri wa Mgawo wa Mzunguko Ujao")
+st.subheader("3. Forecast Next-Cycle Coefficient")
 forecast_rows = []
 for v in weekly_variety['Variety'].dropna().unique():
     sub = weekly_variety[weekly_variety['Variety'] == v].sort_values('WeekStart')
@@ -181,38 +181,38 @@ for v in weekly_variety['Variety'].dropna().unique():
     rolling = sub['MeanActualCoeff'].rolling(window=FORECAST_ROLLING_WEEKS, min_periods=1).mean()
     forecast = rolling.iloc[-1]
     if pd.notna(forecast):
-        forecast_rows.append({'Aina': v, 'Utabiri (%)': round(forecast, 1)})
-forecast_df = pd.DataFrame(forecast_rows).sort_values('Utabiri (%)', ascending=False)
+        forecast_rows.append({'Variety': v, 'Forecast (%)': round(forecast, 1)})
+forecast_df = pd.DataFrame(forecast_rows).sort_values('Forecast (%)', ascending=False)
 st.dataframe(forecast_df)
-st.download_button("Pakua Utabiri", forecast_df.to_csv(index=False).encode(), "utabiri.csv", "text/csv")
+st.download_button("Download Forecast", forecast_df.to_csv(index=False).encode(), "forecast.csv", "text/csv")
 
 # ========================================
-# CHATI 4: Mahitaji ya Wafanyakazi 2026
+# PLOT 4: 2026 Labor & Sensitivity
 # ========================================
-st.subheader("4. Mahitaji ya Wafanyakazi 2026")
+st.subheader("4. 2026 Labor Requirements")
 mean_week = df.groupby('WeekStart')['EstimatedProduction'].sum().mean()
 est2026 = mean_week * 52 * (1 - SICK_FACTOR)
 days_needed = est2026 / HARVESTER_OUTPUT_PER_DAY
 harvesters = days_needed / WORKING_DAYS_PER_HARVESTER_PER_YEAR
 
 col1, col2, col3 = st.columns(3)
-col1.metric("Vitengo vya 2026", f"{est2026:,.0f}")
-col2.metric("Siku za Mvunaji", f"{days_needed:,.0f}")
-col3.metric("Wavunaji Wastaafu", f"{harvesters:,.1f}")
+col1.metric("2026 Projected Units", f"{est2026:,.0f}")
+col2.metric("Harvester-Days Needed", f"{days_needed:,.0f}")
+col3.metric("Full-Time Harvesters", f"{harvesters:,.1f}")
 
-st.write("**Uchanganuzi: Patonzoa la Mvunaji kwa Siku**")
+st.write("**Sensitivity: Output per Day**")
 perf_opts = [50, 75, 100, 150, 200]
 sens = pd.DataFrame([
-    {'Patonzoa/Siku': p,
-     'Siku Zinazohitajika': round(est2026/p),
-     'Wavunaji': round((est2026/p)/WORKING_DAYS_PER_HARVESTER_PER_YEAR, 1)}
+    {'Output/Day': p,
+     'Days Needed': round(est2026/p),
+     'Harvesters': round((est2026/p)/WORKING_DAYS_PER_HARVESTER_PER_YEAR, 1)}
     for p in perf_opts
 ])
 st.dataframe(sens)
-st.download_button("Pakua Uchanganuzi", sens.to_csv(index=False).encode(), "uchanganuzi.csv", "text/csv")
+st.download_button("Download Sensitivity", sens.to_csv(index=False).encode(), "sensitivity.csv", "text/csv")
 
 # ========================================
-# IMEMALIZIKA
+# DONE
 # ========================================
-st.success("Dashibodi imepakiwa kikamilifu! Tembelea juu ili uone chati zote.")
-st.caption(f"Imetengenezwa kwa @Edwinmute • {pd.Timestamp.now().strftime('%d %B %Y, %I:%M %p')} EAT")
+st.success("All graphs loaded successfully!")
+st.caption(f"Built for @Edwinmute • {pd.Timestamp.now().strftime('%d %B %Y, %I:%M %p')} EAT")
