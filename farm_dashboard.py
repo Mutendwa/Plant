@@ -113,21 +113,21 @@ weekly_variety = (
 )
 weekly_variety['AccuracyRate_pct'] = np.where(
     weekly_variety['EstimatedTotal'].replace(0, np.nan).notna(),
-    weekly_variety['ActualTotal'] / weekly_variety['EstimatedTotal'] * 100,
+    weekly_variety['ActualTotal'] / weekly_variety['EstimatedProduction'] * 100,
     np.nan
 )
 
 # ========================================
 # GRAPHS
 # ========================================
-st.subheader("1. Weekly Total Production")
+st.subheader("Weekly Total Production")
 weekly_totals = df.groupby('WeekStart', dropna=False)['Total'].sum().reset_index()
 fig, ax = plt.subplots(figsize=(11,4))
 ax.plot(weekly_totals['WeekStart'], weekly_totals['Total'], marker='o', color='teal')
 ax.set_title("Weekly Total"); ax.set_xlabel("Week"); ax.set_ylabel("Units"); ax.grid(True)
 st.pyplot(fig)
 
-st.subheader("2. Top Varieties")
+st.subheader("Top Varieties")
 top_varieties = weekly_variety.groupby('Variety')['EstimatedTotal'].sum().nlargest(TOP_VARIETIES_TO_PLOT).index.tolist()
 variety_filter = st.selectbox("Select Variety", ["<All Top>"] + top_varieties)
 
@@ -150,28 +150,4 @@ else:
     ax2.set_title("Coefficient (%)"); ax2.grid(True)
     st.pyplot(fig)
 
-st.subheader("3. Forecast")
-forecast_rows = []
-for v in weekly_variety['Variety'].dropna().unique():
-    sub = weekly_variety[weekly_variety['Variety'] == v].sort_values('WeekStart')
-    if sub.empty: continue
-    rolling = sub['MeanActualCoeff'].rolling(window=FORECAST_ROLLING_WEEKS, min_periods=1).mean()
-    forecast = rolling.iloc[-1]
-    if pd.notna(forecast):
-        forecast_rows.append({'Variety': v, 'Forecast (%)': round(forecast, 1)})
-forecast_df = pd.DataFrame(forecast_rows).sort_values('Forecast (%)', ascending=False)
-st.dataframe(forecast_df)
-st.download_button("Download Forecast", forecast_df.to_csv(index=False).encode(), "forecast.csv")
-
-st.subheader("4. 2026 Labor")
-mean_week = df.groupby('WeekStart')['EstimatedProduction'].sum().mean()
-est2026 = mean_week * 52 * (1 - SICK_FACTOR)
-days_needed = est2026 / HARVESTER_OUTPUT_PER_DAY
-harvesters = days_needed / WORKING_DAYS_PER_HARVESTER_PER_YEAR
-
-col1, col2, col3 = st.columns(3)
-col1.metric("Units", f"{est2026:,.0f}")
-col2.metric("Days Needed", f"{days_needed:,.0f}")
-col3.metric("Harvesters", f"{harvesters:,.1f}")
-
-st.success("Dashboard ready!")
+st.success("Dashboard loaded successfully!")
