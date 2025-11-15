@@ -5,10 +5,19 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 # ========================================
-# PAGE CONFIG
+# COMPANY & PROJECT BRANDING
 # ========================================
-st.set_page_config(page_title="Farm Production Dashboard By Brian Ochieng", layout="wide")
-st.title("Farm Production Dashboard")
+st.set_page_config(page_title="Oltepesi Plants PLC - Farm Dashboard", layout="wide")
+st.markdown(
+    """
+    <div style='text-align: center;'>
+        <h1>Oltepesi Plants PLC</h1>
+        <h3>Farm Production Dashboard</h3>
+        <p><strong>Project by:</strong> Brian Ochieng</p>
+    </div>
+    """,
+    unsafe_allow_html=True
+)
 
 # ========================================
 # FILE UPLOAD
@@ -86,7 +95,6 @@ df['MotherPlants'] = pd.to_numeric(df.get('MotherPlants'), errors='coerce')
 df['Total'] = pd.to_numeric(df.get('Total'), errors='coerce').fillna(0.0)
 df['EstimatedCoefficient'] = pd.to_numeric(df.get('EstimatedCoefficient'), errors='coerce')
 
-# Coefficients
 df['Actual Coefficient'] = df.apply(
     lambda r: r['Total'] / r['MotherPlants'] * 100
     if pd.notna(r['MotherPlants']) and r['MotherPlants'] > 0 else np.nan, axis=1)
@@ -113,7 +121,6 @@ if 'PlantDate' in df.columns and df['PlantDate'].notna().any():
 else:
     df['WeekStart'] = df.apply(lambda r: weekstart_from_year_week(r['Year'], r['Week']), axis=1)
 
-# Weekly aggregates
 weekly_variety = (
     df.groupby(['WeekStart', 'Variety'], dropna=False)
       .agg(
@@ -126,7 +133,7 @@ weekly_variety = (
       .sort_values(['Variety','WeekStart'])
 )
 
-# FIXED: Use 'EstimatedTotal' (not 'EstimatedProduction')
+# FIXED: Use EstimatedTotal
 weekly_variety['AccuracyRate_pct'] = np.where(
     weekly_variety['EstimatedTotal'].replace(0, np.nan).notna(),
     weekly_variety['ActualTotal'] / weekly_variety['EstimatedTotal'] * 100,
@@ -146,7 +153,7 @@ st.pyplot(fig)
 # ========================================
 # PLOT 2: Top Varieties
 # ========================================
-st.subheader("2. Top Varieties – Actual vs Estimated")
+st.subheader("2. Tops Varieties – Actual vs Estimated")
 top_varieties = weekly_variety.groupby('Variety')['EstimatedTotal'].sum().nlargest(TOP_VARIETIES_TO_PLOT).index.tolist()
 variety_filter = st.selectbox("Select Variety", ["<All Top>"] + top_varieties)
 
@@ -212,8 +219,16 @@ st.dataframe(sens)
 st.download_button("Download Sensitivity", sens.to_csv(index=False).encode(), "sensitivity.csv", "text/csv")
 
 # ========================================
-# DONE
+# FOOTER
 # ========================================
-st.success("All graphs loaded successfully!")
-st.caption(f"Built for @Edwinmute • {pd.Timestamp.now().strftime('%d %B %Y, %I:%M %p')} EAT")
-
+st.markdown("---")
+st.markdown(
+    """
+    <div style='text-align: center; color: #666; font-size: 0.9em;'>
+        <strong>Oltepesi Plants PLC</strong> • Farm Intelligence System<br>
+        Project Lead: <strong>Brian Ochieng</strong> • Built for <strong>@Edwinmute</strong><br>
+        Generated on: November 15, 2025, 01:15 PM EAT
+    </div>
+    """,
+    unsafe_allow_html=True
+)
